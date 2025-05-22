@@ -1049,7 +1049,6 @@ class Int8DynActInt4WeightLinear(torch.nn.Module):
             self.precision,
         )
 
-
 def _replace_linear_8da4w(
     module: torch.nn.Module,
     groupsize: int,
@@ -1058,18 +1057,30 @@ def _replace_linear_8da4w(
     scales_precision: torch.dtype,
     linear_class: Type[torch.nn.Module],
     copy_weights: bool = False,
+    **kwargs: Any,
 ):
     # import the util function here to avoid circular dependency
     from torchao.quantization.quant_api import _replace_with_custom_fn_if_matches_filter
-
+    
     def filter_fn(child: torch.nn.Module, cur_fqn: str) -> bool:
-        # TODO: support linear bias
-        return (
-            isinstance(child, nn.Linear)
-            and child.bias is None
-            and (_check_linear_int4_k(child.in_features, groupsize) or padding_allowed)
-        )
-
+        # MTI added these
+        layer_2_quant = kwargs.get('layer_names', None)
+        # print(f"layer_2_quant: {layer_2_quant}")
+        # print(f"cur_fqn: {cur_fqn}")
+        # Replace the layers using the module name
+        # not child, as child is the layer itself
+        if (
+        layer_2_quant is not None and
+        (cur_fqn in layer_2_quant) # To test individual layers through layer_2_quant
+        # (layer_2_quant[-1] in cur_fqn) # To test all layers through layer_2_quant
+        and isinstance(child, nn.Linear)
+        and (_check_linear_int4_k(child.in_features, groupsize) or padding_allowed)
+        ):
+            print(f">>>>>>>> Layers: {cur_fqn} are being replaced <<<<<<<<")
+            return True
+        else:
+            return False
+                
     def replacement_fn(child: torch.nn.Module) -> torch.nn.Module:
         new_linear = linear_class(
             child.in_features,

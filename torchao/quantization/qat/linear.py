@@ -187,7 +187,11 @@ class Int8DynActInt4WeightQATQuantizer(_LegacyQATQuantizer):
             self.scales_precision,
             Int8DynActInt4WeightQATLinear,
             copy_weights=True,
+            # MTI added these
+            **kwargs,
         )
+
+        
         return model
 
     def convert(
@@ -200,9 +204,12 @@ class Int8DynActInt4WeightQATQuantizer(_LegacyQATQuantizer):
         """
         Replace all `Int8DynActInt4WeightQATLinear` with `Int8DynActInt4WeightLinear`.
         """
+
         for name, child in module.named_children():
             if isinstance(child, Int8DynActInt4WeightQATLinear):
+                
                 config = child.weight_fake_quantizer.config
+                config.group_size = child.in_features
                 quantized_linear = Int8DynActInt4WeightLinear(
                     child.in_features,
                     child.out_features,
@@ -216,6 +223,7 @@ class Int8DynActInt4WeightQATQuantizer(_LegacyQATQuantizer):
                 # Load weights and qparams into quantized linear
                 n_bit = 4
                 (qmin, qmax) = _get_qmin_qmax(n_bit)
+                print(f"qmin: {qmin} || qmax: {qmax}")
                 (s, zp) = get_group_qparams_symmetric(
                     child.weight, n_bit, config.group_size
                 )
@@ -266,6 +274,8 @@ class Int8DynActInt4WeightQATLinear(FakeQuantizedLinear):
         precision: torch.dtype = torch.float32,
         scales_precision: torch.dtype = torch.float32,
     ) -> None:
+        # MTI added these
+        print("Inside Int8DynActInt4WeightQATLinear class within replace_fn")
         activation_config = _get_8da4w_activation_config(scales_precision)
         weight_config = _get_8da4w_weight_config(groupsize, scales_precision)
         super().__init__(
