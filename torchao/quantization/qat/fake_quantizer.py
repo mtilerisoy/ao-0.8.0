@@ -99,6 +99,12 @@ class FakeQuantizer(torch.nn.Module):
         else:
             raise ValueError("Unexpected granularity '%s'" % granularity)
 
+        ######
+        # MTI Added These
+        # To make the quant config similar to dynamic quantization
+        group_size = x.size()[-1]
+        ######
+
         # get scales and zero points
         if self._should_compute_qparams():
             bit_width = _DTYPE_TO_BIT_WIDTH[self.config.dtype]
